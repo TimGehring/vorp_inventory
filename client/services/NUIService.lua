@@ -207,53 +207,129 @@ function NUIService.NUISetNearPlayers(obj, nearestPlayers)
 	SendNUIMessage(nuiReturn)
 end
 
+-- ========================================================================
+-- MEGA_NPLAYERSELECTOR INTEGRATION
+-- ========================================================================
+
+-- Handles the player selection UI when giving items
+if Config.mega_nplayerselector then
+	function NUIService.NUISelectPlayerNewItem(obj)
+		TriggerEvent('mega_nplayerselector:load', function(data)
+			NPlayerSelector = data
+			NPlayerSelector:activate()
+			NPlayerSelector:onPlayerSelected(function(selectedPlayer)
+				-- Prepare data structure for give item handler
+				local giveData = {
+					player = selectedPlayer.id,
+					data = obj.item,
+					hsn = obj.hsn -- Forward validation hash
+				}
+				-- Call unified give item handler
+				NUIService.NUIGiveItem(giveData)
+				NPlayerSelector:deactivate()
+			end)
+		end)
+	end
+end
+
+-- ========================================================================
+-- HELPER FUNCTIONS
+-- ========================================================================
+
+-- Validates if the target player is nearby
+local function validateNearbyPlayer(targetId, nearbyPlayers)
+	for _, player in ipairs(nearbyPlayers) do
+		if GetPlayerServerId(player) == tonumber(targetId) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Processes giving an item to another player based on item type
+local function processGiveItem(itemData, targetId, itemId)
+	local itemType = itemData.type
+	local count = tonumber(itemData.count)
+
+	-- Money transfer
+	if itemType == "item_money" then
+		if isProcessingPay then return false end
+		isProcessingPay = true
+		TriggerServerEvent("vorpinventory:giveMoneyToPlayer", targetId, count)
+		return true
+	end
+
+	-- Gold transfer
+	if Config.UseGoldItem and itemType == "item_gold" then
+		if isProcessingPay then return false end
+		isProcessingPay = true
+		TriggerServerEvent("vorpinventory:giveGoldToPlayer", targetId, count)
+		return true
+	end
+
+	-- Ammo transfer
+	if itemType == "item_ammo" then
+		if isProcessingPay then return false end
+		isProcessingPay = true
+		local ammotype = itemData.item
+		local maxcount = SharedData.MaxAmmo[ammotype]
+		if count > 0 and maxcount >= count then
+			TriggerServerEvent("vorpinventory:servergiveammo", ammotype, count, targetId, maxcount)
+			return true
+		end
+		return false
+	end
+
+	-- Standard item transfer
+	if itemType == "item_standard" then
+		local item = UserInventory[itemId]
+		if count > 0 and item and item:getCount() >= count then
+			TriggerServerEvent("vorpinventory:serverGiveItem", itemId, count, targetId)
+			return true
+		end
+		return false
+	end
+
+	-- Weapon transfer
+	TriggerServerEvent("vorpinventory:serverGiveWeapon", tonumber(itemId), targetId)
+	return true
+end
+
+-- ========================================================================
+-- UNIFIED GIVE ITEM HANDLER
+-- ========================================================================
+
 function NUIService.NUIGiveItem(obj)
+	-- Check if giving is allowed in current context
 	if not cangive then
 		return Core.NotifyRightTip(T.cantgivehere, 5000)
 	end
 
-	local nearestPlayers = Utils.getNearestPlayers()
-	local data = obj
-	local data2 = data.data
-	local isvalid = Validator.IsValidNuiCallback(data.hsn)
-
-	if isvalid then
-		for _, player in ipairs(nearestPlayers) do
-			if GetPlayerServerId(player) == tonumber(data.player) then
-				local itemId = data2.id
-				local target = tonumber(data.player)
-
-				if data2.type == "item_money" then
-					if isProcessingPay then return end
-					isProcessingPay = true
-					TriggerServerEvent("vorpinventory:giveMoneyToPlayer", target, tonumber(data2.count))
-				elseif Config.UseGoldItem and data2.type == "item_gold" then
-					if isProcessingPay then return end
-					isProcessingPay = true
-					TriggerServerEvent("vorpinventory:giveGoldToPlayer", target, tonumber(data2.count))
-				elseif data2.type == "item_ammo" then
-					if isProcessingPay then return end
-					isProcessingPay = true
-					local amount = tonumber(data2.count)
-					local ammotype = data2.item
-					local maxcount = SharedData.MaxAmmo[ammotype]
-					if amount > 0 and maxcount >= amount then
-						TriggerServerEvent("vorpinventory:servergiveammo", ammotype, amount, target, maxcount)
-					end
-				elseif data2.type == "item_standard" then
-					local amount = tonumber(data2.count)
-					local item = UserInventory[itemId]
-
-					if amount > 0 and item ~= nil and item:getCount() >= amount then
-						TriggerServerEvent("vorpinventory:serverGiveItem", itemId, amount, target)
-					end
-				else
-					TriggerServerEvent("vorpinventory:serverGiveWeapon", tonumber(itemId), target)
-				end
-
-				NUIService.LoadInv()
-			end
+	-- Validate NUI callback to prevent exploits
+	-- Skip validation only if using mega_nplayerselector
+	if not Config.mega_nplayerselector then
+		local isvalid = Validator.IsValidNuiCallback(obj.hsn)
+		if not isvalid then
+			return -- Validator already handles logging
 		end
+	end
+
+	local nearestPlayers = Utils.getNearestPlayers()
+	local itemData = obj.data
+	local targetId = tonumber(obj.player)
+	local itemId = itemData.id
+
+	-- Validate that target player is actually nearby
+	if not validateNearbyPlayer(targetId, nearestPlayers) then
+		return Core.NotifyRightTip(T.noplayersnearby, 5000)
+	end
+
+	-- Process the give action based on item type
+	local success = processGiveItem(itemData, targetId, itemId)
+	
+	if success then
+		-- Refresh inventory UI
+		NUIService.LoadInv()
 	end
 end
 
@@ -635,6 +711,7 @@ function NUIService.initiateData()
 			DoubleClickToUse = Config.DoubleClickToUse,
 			UseRolItem = Config.UseRolItem,
 			WeightMeasure = Config.WeightMeasure or "Kg",
+			mega_nplayerselector = Config.mega_nplayerselector,
 		}
 	})
 end

@@ -106,3 +106,9 @@ RegisterNetEvent("vorp_inventory:ReloadContainerInventory")
 AddEventHandler("vorp_inventory:ReloadContainerInventory", NUIService.ReloadInventory)
 RegisterNUICallback("TakeFromContainer", NUIService.NUITakeFromContainer);
 RegisterNUICallback("MoveToContainer", NUIService.NUIMoveToContainer);
+
+-- mega_nplayerselector integration
+-- Registers the NUI callback for player selection when giving items
+if Config.mega_nplayerselector then
+    RegisterNUICallback('GiveNewItem', NUIService.NUISelectPlayerNewItem)
+end

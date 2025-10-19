@@ -41,6 +41,7 @@
 - Gold item like Dollars (You can give and drop item)
 - Option to use Gold like Dollars, configurable in `config.lua` and `config.js`
 - Added descriptions of each item in inventory, for items (desc is in DB), for weapons (desc is in `shared/weapons.lua`)
+- Added the option to use the [mega_nplayerselector](https://github.com/MegaITA/mega_nplayerselector) for transferring items, weapons, and currency.
 
 ## DOCUMENTATION
 Inventory API [Documentation](https://docs.vorp-core.com/api-reference/inventory)

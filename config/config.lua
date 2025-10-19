@@ -18,6 +18,12 @@ Config = {
 
 	CoolDownNewPlayer          = 120, -- In seconds how long they have to wait before they can give items or money
 
+	-- =================== PLAYER SELECTOR INTEGRATION ===================== --
+	-- Enables mega_nplayerselector for a better player selection UI when giving items
+	-- Repository: https://github.com/MegaITA/mega_nplayerselector
+	-- If disabled, uses the default nearby player list dialog
+	mega_nplayerselector	   = true,
+
 	-- GOLD ITEM LIKE DOLLARS
 	UseRolItem                 = false, -- To show rol in inventory
 

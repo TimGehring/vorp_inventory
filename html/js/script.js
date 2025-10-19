@@ -38,6 +38,8 @@ window.addEventListener('message', function (event) {
     if (event.data.action == "initiate") {
         LANGUAGE = event.data.language
         LuaConfig = event.data.config
+        
+        // Synchronize all config values from Lua to ensure consistency
         Config.UseGoldItem = LuaConfig.UseGoldItem;
         Config.AddGoldItem = LuaConfig.AddGoldItem;
         Config.AddDollarItem = LuaConfig.AddDollarItem;
@@ -45,6 +47,8 @@ window.addEventListener('message', function (event) {
         Config.DoubleClickToUse = LuaConfig.DoubleClickToUse;
         Config.UseRolItem = LuaConfig.UseRolItem;
         Config.WeightMeasure = LuaConfig.WeightMeasure;
+        Config.mega_nplayerselector = LuaConfig.mega_nplayerselector;
+        
         // Fetch the Actions configuration from Lua
         loadActionsConfig().then(actionsConfig => {
             generateActionButtons(actionsConfig, 'carousel1', 'inventoryElement', 'dropdownButton');
@@ -280,7 +284,16 @@ window.addEventListener('message', function (event) {
         secondarySetCurrentCapacity(total, weight)
     } else if (event.data.action == "nearPlayers") {
         if (event.data.what == "give") {
-            selectPlayerToGive(event.data);
+            // Choose player selection method based on config
+            if (Config.mega_nplayerselector == true) {
+                // Use mega_nplayerselector for enhanced player selection UI
+                $.post("https://vorp_inventory/GiveNewItem", JSON.stringify({
+                    item: event.data,
+                }));
+            } else {
+                // Use default nearby player list dialog
+                selectPlayerToGive(event.data);
+            }
         }
     }
 });
